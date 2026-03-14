@@ -19,23 +19,23 @@ PROPERTY ATMEL { Preassign=keep };
 
 
 /* *************** INPUT PINS *********************/
-PIN = [i_addr12..0];
-PIN = i_clk;
-PIN = i_rfrshn;
+PIN [26,44,1,2,4,20,18,19,17,33,9,8,6]= [i_addr12..0];
+PIN [43]= i_clk;
+PIN [16]= i_rfrshn;
 /* PIN = i_mreqn; => Inutile car la memoire flash contient aussi une entree OENeg en plus du CENeg */
-PIN = i_resetn;
+PIN [21]= i_resetn;
 
 /* *************** OUTPUT PINS ********************/
-PIN = o_A3p;
-PIN = o_A4p;
-PIN = o_A5p;
-PIN = o_A8p;
-PIN = o_A9p;
-PIN = o_A10p;
-PIN = o_jrfrshn;
-PIN = o_mspacman_flash_csn;
-PIN = [o_mspacman_bank_sel0..1];
-PIN = o_led;
+PIN [41]= o_A3p;
+PIN [29]= o_A4p;
+PIN [31]= o_A5p;
+PIN [37]= o_A8p;
+PIN [5]= o_A9p;
+PIN [39]= o_A10p;
+PIN [24]= o_jrfrshn;
+PIN [12]= o_mspacman_flash_csn;
+PIN [40,14]= [o_mspacman_bank_sel0..1];
+PIN [28]= overlay;
 
 FIELD i_addr = [i_addr12..0];
 FIELD cpu_addr = [cpu_addr15..0];
@@ -43,11 +43,14 @@ FIELD final_addr = [final_addr15..0];
 FIELD rom_patched = [rom_patched15..0];
 
 PINNODE = patch_match;
+PINNODE = u6_bank_sel_1;
+PINNODE = u6_bank_sel_2;
+PINNODE = u5_bank_sel;
+PINNODE = u6_bank_sel;
+PINNODE = u7_bank_sel;
 
 PINNODE = OVL;
 /* *************** FIELD DEFINITIONS *************** */
-PINNODE = C0..C19;
-PINNODE = CE0..CE19;
 
 cpu_addr = [i_addr12..0,'b'0,'b'0,'b'0];
 
@@ -132,7 +135,9 @@ u5_bank_sel = patch_match # (cpu_addr15 & !cpu_addr14 & !cpu_addr13 & !cpu_addr1
 
 /* addr = 0x8800-0x8FFF, xlate to 0x9800-0x9FFF (physical ROM hi 1800-1FFF), decrypt half of u6 */
 /* addr = 0x9000-0x97FF, no xlate (physical ROM hi 1000-17FF), decrypt half of u6 */
-u6_bank_sel = (cpu_addr15 & !cpu_addr14 & !cpu_addr13 & cpu_addr12);
+u6_bank_sel_1 = (cpu_addr15 & !cpu_addr14 & !cpu_addr13 & !cpu_addr12 & cpu_addr11);
+u6_bank_sel_2 = (cpu_addr15 & !cpu_addr14 & !cpu_addr13 & cpu_addr12 & !cpu_addr11);
+u6_bank_sel = u6_bank_sel_1 # u6_bank_sel_2;
 /* addr = 0x3000-0x37FF, xlate to 0xB000-0xB7FF (physical ROM hi 2000-27FF), decrypt half of u7
    addr = 0x3800-0x3FFF, xlate to 0xB800-0xBFFF (physical ROM hi 2800-2FFF), decrypt half of u7 */
 /*u7_bank_sel = (final_addr:'b'00110);*/
@@ -141,37 +146,57 @@ u7_bank_sel = (!cpu_addr15 & !cpu_addr14 & cpu_addr13 & cpu_addr12);
 o_mspacman_bank_sel0 = u6_bank_sel;
 o_mspacman_bank_sel1 = u7_bank_sel;
 o_mspacman_flash_csn = !(u5_bank_sel # u6_bank_sel # u7_bank_sel) # (!overlay);
-/* Sur le controleur de bus PacMan le signal RFRSH=1 est utilise comme chip select s'il est a 1
+/* Sur le controleur de bus PacMan le signal RFRSH=1 est utilise comme chip select des ROMs et du bus controller custom 285.
+   S'il est a 1 les ROMs et le CS du bus controller sont inactifs.
    Je pense qu'il doit donc etre a 0 si on accede aux ROM auxiliaires MsPacMan pour desactiver l'acces 
    au controleur de bus dans ce cas, sinon on recopie i_rfrshn */
-o_jrfrshn = (overlay & (o_mspacman_flash_csn & i_rfrshn)) # (!overlay & i_rfrshn);
+o_jrfrshn = (overlay & o_mspacman_flash_csn) # (!overlay & i_rfrshn);
 
 /* Si on accede a U5, on change l'adressage de A3, A5, A6, A8, A9, A10 */
-o_A3p = final_addr3;
+o_A3p = (final_addr3 & !u5_bank_sel) # (final_addr8 & u5_bank_sel);
 o_A4p = final_addr4;
-o_A5p = final_addr5;
-o_A8p = final_addr8;
-o_A9p = final_addr9;
-o_A10p = final_addr10;
+o_A5p = (final_addr5 & !u5_bank_sel) # (final_addr3 & u5_bank_sel);
+o_A8p = (final_addr8 & !u5_bank_sel) # (final_addr10 & u5_bank_sel);
+o_A9p = (final_addr9 & !u5_bank_sel) # (final_addr5 & u5_bank_sel);
+o_A10p = (final_addr10 & !u5_bank_sel) # (final_addr9 & u5_bank_sel);
 
 /****************************/
 /* LED de test pour le CPLD */
 /****************************/
 /* Frequence = 3 MHz => Periode LED = 350 ms */
-C0.CK = i_clk;
-C0.ce =  'b'1;
-C0.AR = (!i_resetn);
-C0.D = !C0;
+/* Pour une raison que j'ignore, le compteur ne fonctionne pas a 3 MHz.
+   Il y a peut-etre trop de bascules D qui sont utilisees ???
+   En fait, la generation est acceptee et la simultaion a l'air de fonctionner. Mais, apres la programmation, plus rien ne marche
+   De toutes facon, c'etait juste pour du test.
+   Je le remplace par le signal d'overlay */
 
-CE0 = 'b'1;
-$REPEAT i=[1..19] 
-   /* Apparement l'horloge est commune pour toutes les macro cells du CPLD (?). Du coup, pour faire les diviseurs
-    par 2 j'utiliser l'entree CE pour valider le toggle si Q0 & Q1 pour le premier etage, Q0 & Q1 & Q2 pour le second,... */
-   C{i}.CK = i_clk;
-   CE{i} = C{i-1} & CE{i-1};
-   C{i}.ce = CE{i};
-   C{i}.AR = (!i_resetn);
-   C{i}.D = !(C{i});
-$REPEND
+//PINNODE = [Q0..19];
 
- o_led = C19;
+/* 16-Bit Counter macro that uses the T-type registers */
+/*
+Q19.d = (Q18 & Q17 & Q16 & Q15 & Q14 & Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q19;
+Q18.d = (Q17 & Q16 & Q15 & Q14 & Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q18;
+Q17.d = (Q16 & Q15 & Q14 & Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q17;
+Q16.d = (Q15 & Q14 & Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q16;
+Q15.d = (Q14 & Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q15;
+Q14.d = (Q13 & Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q14;
+Q13.d = (Q12 & Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q13;
+Q12.d = (Q11 & Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q12;
+Q11.d = (Q10 & Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q11;
+Q10.d = (Q9 & Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q10;
+Q9.d =  (Q8 & Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0)  $ Q9;
+Q8.d =  (Q7 & Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0)  $ Q8;
+Q7.d =  (Q6 & Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q7;
+Q6.d =  (Q5 & Q4 & Q3 & Q2 & Q1 & Q0) $ Q6;
+Q5.d =  (Q4 & Q3 & Q2 & Q1 & Q0) $ Q5;
+Q4.d =  (Q3 & Q2 & Q1 & Q0) $ Q4;
+Q3.d =  (Q2 & Q1 & Q0) $ Q3;
+Q2.d =  (Q1 & Q0) $ Q2;
+Q1.d =  Q0 $ Q1;
+Q0.d =  !Q0;
+
+[Q19..0].ce =  'h'FFFF;
+[Q19..0].ck =  i_clk;
+[Q19..0].ar =  !i_resetn;
+
+o_led = Q19; */

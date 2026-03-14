@@ -60,10 +60,10 @@ C 1 '0598' "80D0" "80D0" 1 L LHLLLL H L L L *
 C 1 '07E9' "0000" "3F48" 0 L HLLHHH L L H L *
 C 1 '12F2' "0000" "9790" 1 L LHLHHH L H L L *
 C 1 '09CE' "0000" "4E70" 1 H LHHLHH L L L H *
-C 1 '059B' "80E0" "80E0" 1 L LLHLLL H L L L *
+C 1 '059B' "80E0" "80E0" 1 L LLLLHL H L L L *
 /* Meme chose avec overlay=off */
 C 1 '2C0' **************** **************** 1 * ****** * * * * L
-C 1 '057E' "81D0" "81D0" 1 H LHLHLL H L L H *
+C 1 '057E' "81D0" "81D0" 1 H HHLLLL H L L H *
 C 1 '0601' "0000" "3008" 1 H HLLLLL L L H H *
 /* Overlay ON de nouveau */
 C 1 '07FF' **************** **************** 1 * ****** * * * * H
@@ -71,4 +71,13 @@ C 1 '0598' "80D0" "80D0" 1 L LHLLLL H L L L *
 C 1 '07E9' "0000" "3F48" 0 L HLLHHH L L H L *
 C 1 '12F2' "0000" "9790" 1 L LHLHHH L H L L *
 C 1 '09CE' "0000" "4E70" 1 H LHHLHH L L L H *
-C 1 '059B' "80E0" "80E0" 1 L LLHLLL H L L L *
+C 1 '059B' "80E0" "80E0" 1 L LLLLHL H L L L *
+/* U5 */
+C 1 '0598' "80D0" "80D0" 1 L LHLLLL H L L L *
+C 1 '059B' "80E0" "80E0" 1 L LLLLHL H L L L *
+C 1 '049B' "80C0" "80C0" 1 L LLLLLL H L L L *
+/* U6 */
+C 1 '12F2' "0000" "9790" 1 L LHLHHH L H L L *
+/* U7 */
+C 1 '07EE' "0000" "3F70" 1 L LHHHHH L L H L *
+C 1 '065E' "0000" "32F0" 1 L LHHLHL L L H L *
