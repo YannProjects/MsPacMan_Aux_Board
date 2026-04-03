@@ -76,7 +76,6 @@ OVL.K = !i_resetn # overlay_off;
 overlay = OVL;
 
 /* Zone de patch */
-
 Table cpu_addr => rom_patched
 {
    'h'0410 => 'h'8008;
